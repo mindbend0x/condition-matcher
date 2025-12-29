@@ -13,7 +13,7 @@ dependencies = [
 
 [[package]]
 name = "condition-matcher"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "condition-matcher-derive",
  "regex",
