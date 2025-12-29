@@ -2,5 +2,25 @@
 name = "condition-matcher"
 version = "0.1.0"
 edition = "2024"
+description = "A flexible and type-safe condition matching library with automatic struct field access"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/yourusername/condition-matcher"
+keywords = ["condition", "matcher", "rules", "filter", "validation"]
+categories = ["data-structures", "rust-patterns"]
 
 [dependencies]
+condition-matcher-derive = { path = "condition-matcher-derive" }
+serde = { version = "1.0", features = ["derive"], optional = true }
+regex = { version = "1.10", optional = true }
+
+[features]
+default = []
+serde = ["dep:serde", "condition-matcher-derive/serde"]
+regex = ["dep:regex"]
+full = ["serde", "regex"]
+
+[workspace]
+members = [".", "condition-matcher-derive"]
+
+[dev-dependencies]
+serde_json = "1.0"
