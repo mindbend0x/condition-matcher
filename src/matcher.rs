@@ -278,6 +278,15 @@ impl<'a, T: Matchable + 'static> Matcher<'a, T> {
         let result = self.run_detailed(value)?;
         Ok(result.matched)
     }
+
+    /// Run the matcher and return a simple boolean result.
+    /// Returns Err if any condition evaluation fails critically.
+    pub fn run_batch(&self, values: impl Iterator<Item = &'a T>) -> Result<Vec<bool>, MatchError> {
+        values
+            .into_iter()
+            .map(|value| self.run(value))
+            .collect()
+    }
     
     /// Run the matcher and return detailed results for each condition
     pub fn run_detailed(&self, value: &T) -> Result<MatchResult, MatchError> {
@@ -299,6 +308,14 @@ impl<'a, T: Matchable + 'static> Matcher<'a, T> {
             condition_results,
             mode: self.mode,
         })
+    }
+
+    /// Run the matcher and return detailed results for each condition
+    pub fn run_detailed_batch(&self, values: impl Iterator<Item = &'a T>) -> Result<Vec<MatchResult>, MatchError> {
+        values
+            .into_iter()
+            .map(|value| self.run_detailed(value))
+            .collect()
     }
     
     fn evaluate_condition(&self, condition: &Condition<'a, T>, value: &T) -> ConditionResult {
