@@ -646,34 +646,8 @@ fn compare_json_to_any(
 
 #[cfg(feature = "json_condition")]
 use crate::condition::{JsonCondition, JsonNestedCondition};
-
-/// Result of evaluating a JSON condition
 #[cfg(feature = "json_condition")]
-#[derive(Debug, Clone)]
-pub struct JsonConditionResult {
-    /// Whether this condition passed
-    pub passed: bool,
-    /// The field that was checked
-    pub field: String,
-    /// The operator used
-    pub operator: ConditionOperator,
-    /// The expected value
-    pub expected: serde_json::Value,
-    /// The actual value (if found)
-    pub actual: Option<serde_json::Value>,
-    /// Error message if evaluation failed
-    pub error: Option<String>,
-}
-
-/// Result of evaluating a JSON nested condition group
-#[cfg(feature = "json_condition")]
-#[derive(Debug, Clone)]
-pub struct JsonEvalResult {
-    /// Whether the overall group matched
-    pub matched: bool,
-    /// Results of individual conditions
-    pub details: Vec<JsonConditionResult>,
-}
+use crate::result::{JsonConditionResult, JsonEvalResult};
 
 /// Evaluate a JsonNestedCondition against a Matchable context.
 ///
@@ -773,86 +747,3 @@ fn eval_json_rule<M: Matchable>(context: &M, rule: &JsonCondition<'_>) -> JsonCo
         },
     }
 }
-
-// ============================================================================
-// Matchable Implementations for Common Types
-// ============================================================================
-
-impl Matchable for &str {
-    fn get_length(&self) -> Option<usize> {
-        Some(self.len())
-    }
-
-    fn is_empty(&self) -> Option<bool> {
-        Some((*self).is_empty())
-    }
-}
-
-impl Matchable for String {
-    fn get_length(&self) -> Option<usize> {
-        Some(self.len())
-    }
-
-    fn is_empty(&self) -> Option<bool> {
-        Some(self.is_empty())
-    }
-}
-
-impl<T: Matchable> Matchable for Vec<T> {
-    fn get_length(&self) -> Option<usize> {
-        Some(self.len())
-    }
-
-    fn is_empty(&self) -> Option<bool> {
-        Some(self.is_empty())
-    }
-}
-
-impl<K, V> Matchable for HashMap<K, V>
-where
-    K: std::borrow::Borrow<str> + std::hash::Hash + Eq,
-    V: PartialEq + 'static,
-{
-    fn get_length(&self) -> Option<usize> {
-        Some(self.len())
-    }
-
-    fn get_field(&self, field: &str) -> Option<&dyn Any> {
-        self.get(field).map(|v| v as &dyn Any)
-    }
-
-    fn is_empty(&self) -> Option<bool> {
-        Some(self.is_empty())
-    }
-}
-
-impl<T: Matchable + 'static> Matchable for Option<T> {
-    fn get_length(&self) -> Option<usize> {
-        self.as_ref().and_then(|v| v.get_length())
-    }
-
-    fn get_field(&self, field: &str) -> Option<&dyn Any> {
-        self.as_ref().and_then(|v| v.get_field(field))
-    }
-
-    fn is_none(&self) -> bool {
-        self.is_none()
-    }
-
-    fn is_empty(&self) -> Option<bool> {
-        Some(self.is_none())
-    }
-}
-
-// Implement for primitive types
-macro_rules! impl_matchable_primitive {
-    ($($t:ty),*) => {
-        $(
-            impl Matchable for $t {}
-        )*
-    };
-}
-
-impl_matchable_primitive!(
-    i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, f32, f64, bool, char
-);

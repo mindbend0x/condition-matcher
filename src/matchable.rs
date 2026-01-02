@@ -1,4 +1,5 @@
 use std::any::Any;
+use std::collections::HashMap;
 
 /// Trait for types that can be matched against conditions.
 /// 
@@ -52,3 +53,86 @@ pub trait Matchable: PartialEq + Sized {
         false
     }
 }
+
+// ============================================================================
+// Matchable Implementations for Common Types
+// ============================================================================
+
+impl Matchable for &str {
+    fn get_length(&self) -> Option<usize> {
+        Some(self.len())
+    }
+
+    fn is_empty(&self) -> Option<bool> {
+        Some((*self).is_empty())
+    }
+}
+
+impl Matchable for String {
+    fn get_length(&self) -> Option<usize> {
+        Some(self.len())
+    }
+
+    fn is_empty(&self) -> Option<bool> {
+        Some(self.is_empty())
+    }
+}
+
+impl<T: Matchable> Matchable for Vec<T> {
+    fn get_length(&self) -> Option<usize> {
+        Some(self.len())
+    }
+
+    fn is_empty(&self) -> Option<bool> {
+        Some(self.is_empty())
+    }
+}
+
+impl<K, V> Matchable for HashMap<K, V>
+where
+    K: std::borrow::Borrow<str> + std::hash::Hash + Eq,
+    V: PartialEq + 'static,
+{
+    fn get_length(&self) -> Option<usize> {
+        Some(self.len())
+    }
+
+    fn get_field(&self, field: &str) -> Option<&dyn Any> {
+        self.get(field).map(|v| v as &dyn Any)
+    }
+
+    fn is_empty(&self) -> Option<bool> {
+        Some(self.is_empty())
+    }
+}
+
+impl<T: Matchable + 'static> Matchable for Option<T> {
+    fn get_length(&self) -> Option<usize> {
+        self.as_ref().and_then(|v| v.get_length())
+    }
+
+    fn get_field(&self, field: &str) -> Option<&dyn Any> {
+        self.as_ref().and_then(|v| v.get_field(field))
+    }
+
+    fn is_none(&self) -> bool {
+        self.is_none()
+    }
+
+    fn is_empty(&self) -> Option<bool> {
+        Some(self.is_none())
+    }
+}
+
+// Implement for primitive types
+macro_rules! impl_matchable_primitive {
+    ($($t:ty),*) => {
+        $(
+            impl Matchable for $t {}
+        )*
+    };
+}
+
+impl_matchable_primitive!(
+    i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, f32, f64, bool, char
+);

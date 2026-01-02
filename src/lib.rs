@@ -76,7 +76,7 @@ pub use condition_matcher_derive::Matchable as MatchableDerive;
 #[cfg(feature = "json_condition")]
 pub use condition::{JsonCondition, JsonNestedCondition};
 #[cfg(feature = "json_condition")]
-pub use matcher::{JsonConditionResult, JsonEvalResult, evaluate_json_condition};
+pub use result::{JsonConditionResult, JsonEvalResult};
 
 #[cfg(test)]
 mod test;
