@@ -1,6 +1,6 @@
 [package]
 name = "condition-matcher"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2024"
 description = "A flexible and type-safe condition matching library with automatic struct field access"
 license = "MIT OR Apache-2.0"
@@ -13,16 +13,22 @@ condition-matcher-derive = { path = "condition-matcher-derive", version = "0.1.0
 serde = { version = "1.0", features = ["derive"], optional = true }
 serde_json = { version = "1.0", optional = true }
 regex = { version = "1.10", optional = true }
+rayon = { version = "1.10", optional = true }
 
 [features]
 default = []
 serde = ["dep:serde", "condition-matcher-derive/serde"]
 json_condition = ["serde", "dep:serde_json"]
 regex = ["dep:regex"]
-full = ["serde", "regex", "json_condition"]
+parallel = ["dep:rayon"]
+full = ["serde", "regex", "json_condition", "parallel"]
 
 [workspace]
 members = [".", "condition-matcher-derive"]
 
 [dev-dependencies]
 serde_json = "1.0"
+rust_decimal = { version = "1.36", features = ["serde"] }
+rust_decimal_macros = "1.36"
+chrono = { version = "0.4", features = ["serde"] }
+rand = "0.8"

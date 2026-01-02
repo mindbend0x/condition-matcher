@@ -45,7 +45,6 @@ pub struct ConditionResult {
     /// Error if evaluation failed
     pub error: Option<MatchError>,
 }
-
 /// Result of evaluating a JSON condition
 #[cfg(feature = "json_condition")]
 #[derive(Debug, Clone)]

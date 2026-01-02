@@ -1,8 +1,8 @@
 //! Basic usage example for condition-matcher
 
 use condition_matcher::{
-    Condition, ConditionOperator, ConditionSelector, Matchable, MatchableDerive, Matcher,
-    ConditionMode,
+    Condition, ConditionMode, ConditionOperator, ConditionSelector, Evaluate, Matchable,
+    MatchableDerive, Matcher, RuleMatcher,
 };
 
 // Define a struct and derive Matchable automatically!
@@ -23,7 +23,7 @@ fn main() {
     };
 
     // Example 1: Match by field value (automatic field access!)
-    let mut matcher = Matcher::new(ConditionMode::AND);
+    let mut matcher = RuleMatcher::new(ConditionMode::AND);
     matcher
         .add_condition(Condition {
             selector: ConditionSelector::FieldValue("id", &42i32),
@@ -36,24 +36,21 @@ fn main() {
 
     println!(
         "User matches ID=42 AND is_active=true: {}",
-        matcher.run(&user).unwrap()
+        matcher.matches(&user)
     );
 
     // Example 2: Match by string field
     let expected_name = "Alice".to_string();
-    let mut name_matcher = Matcher::new(ConditionMode::AND);
+    let mut name_matcher = RuleMatcher::new(ConditionMode::AND);
     name_matcher.add_condition(Condition {
         selector: ConditionSelector::FieldValue("name", &expected_name),
         operator: ConditionOperator::Equals,
     });
 
-    println!(
-        "User name is 'Alice': {}",
-        name_matcher.run(&user).unwrap()
-    );
+    println!("User name is 'Alice': {}", name_matcher.matches(&user));
 
     // Example 3: OR mode - match either condition
-    let mut or_matcher = Matcher::new(ConditionMode::OR);
+    let mut or_matcher = RuleMatcher::new(ConditionMode::OR);
     or_matcher
         .add_condition(Condition {
             selector: ConditionSelector::FieldValue("id", &100i32),
@@ -66,23 +63,20 @@ fn main() {
 
     println!(
         "User matches ID=100 OR age=30: {}",
-        or_matcher.run(&user).unwrap()
+        or_matcher.matches(&user)
     );
 
-    // Example 4: Numeric comparisons (NEW!)
-    let mut age_matcher = Matcher::new(ConditionMode::AND);
+    // Example 4: Numeric comparisons
+    let mut age_matcher = RuleMatcher::new(ConditionMode::AND);
     age_matcher.add_condition(Condition {
         selector: ConditionSelector::FieldValue("age", &18u32),
         operator: ConditionOperator::GreaterThanOrEqual,
     });
 
-    println!(
-        "User is 18 or older: {}",
-        age_matcher.run(&user).unwrap()
-    );
+    println!("User is 18 or older: {}", age_matcher.matches(&user));
 
-    // Example 5: String operations (NEW!)
-    let mut name_contains = Matcher::new(ConditionMode::AND);
+    // Example 5: String operations
+    let mut name_contains = RuleMatcher::new(ConditionMode::AND);
     name_contains.add_condition(Condition {
         selector: ConditionSelector::FieldValue("name", &"lic"),
         operator: ConditionOperator::Contains,
@@ -90,7 +84,7 @@ fn main() {
 
     println!(
         "User name contains 'lic': {}",
-        name_contains.run(&user).unwrap()
+        name_contains.matches(&user)
     );
 
     // Example 6: Complex nested struct
@@ -105,25 +99,22 @@ fn main() {
         zip: 10001,
     };
 
-    let mut address_matcher = Matcher::new(ConditionMode::AND);
+    let mut address_matcher = RuleMatcher::new(ConditionMode::AND);
     address_matcher.add_condition(Condition {
         selector: ConditionSelector::FieldValue("zip", &10001i32),
         operator: ConditionOperator::Equals,
     });
 
-    println!(
-        "Address ZIP is 10001: {}",
-        address_matcher.run(&address).unwrap()
-    );
+    println!("Address ZIP is 10001: {}", address_matcher.matches(&address));
 
-    // Example 7: Detailed results (NEW!)
-    let result = matcher.run_detailed(&user).unwrap();
+    // Example 7: Detailed results
+    let result = matcher.evaluate(&user);
     println!("\n=== Detailed Results ===");
     println!("Overall match: {}", result.is_match());
     println!("Conditions passed: {}", result.passed_conditions().len());
     println!("Conditions failed: {}", result.failed_conditions().len());
 
-    // Example 8: Builder API (NEW!)
+    // Example 8: Builder API
     use condition_matcher::MatcherBuilder;
 
     let builder_matcher = MatcherBuilder::<&str>::new()
@@ -134,10 +125,10 @@ fn main() {
 
     println!(
         "\nBuilder matcher on 'good': {}",
-        builder_matcher.run(&"good").unwrap()
+        builder_matcher.matches(&"good")
     );
     println!(
         "Builder matcher on 'bad': {}",
-        builder_matcher.run(&"bad").unwrap()
+        builder_matcher.matches(&"bad")
     );
 }

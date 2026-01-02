@@ -1,12 +1,12 @@
-//! # Matcher Module
+//! # Matcher Module (Legacy)
 //!
-//! This module provides the core matching functionality for evaluating conditions
-//! against values.
+//! This module provides backwards compatibility with the old Matcher struct.
+//! For new code, use [`RuleMatcher`](crate::matchers::RuleMatcher) instead.
 //!
 //! ## Example
 //!
 //! ```rust
-//! use condition_matcher::{Matcher, MatcherMode, Condition, ConditionSelector, ConditionOperator, Matchable, MatchableDerive};
+//! use condition_matcher::{RuleMatcher, MatcherMode, Condition, ConditionSelector, ConditionOperator, Matchable, MatchableDerive, Matcher};
 //!
 //! #[derive(MatchableDerive, PartialEq, Debug)]
 //! struct User {
@@ -16,16 +16,16 @@
 //!
 //! let user = User { name: "Alice".to_string(), age: 30 };
 //!
-//! let mut matcher = Matcher::new(MatcherMode::AND);
+//! let mut matcher = RuleMatcher::new(MatcherMode::AND);
 //! matcher.add_condition(Condition {
 //!     selector: ConditionSelector::FieldValue("age", &30u32),
 //!     operator: ConditionOperator::Equals,
 //! });
 //!
-//! assert!(matcher.run(&user).unwrap());
+//! assert!(matcher.matches(&user));
 //! ```
 
-use std::{any::Any, collections::HashMap, fmt};
+use std::{any::Any, fmt};
 
 use crate::{
     MatchError, Matchable,
@@ -33,11 +33,13 @@ use crate::{
     result::{ConditionResult, MatchResult},
 };
 
-/// The main matcher struct that holds conditions and evaluates them against values.
+/// The legacy matcher struct (kept for backwards compatibility).
+///
+/// For new code, use [`RuleMatcher`](crate::matchers::RuleMatcher) instead.
 ///
 /// ## Example
 ///
-/// ```rust
+/// ```rust,ignore
 /// use condition_matcher::{Matcher, MatcherMode, Condition, ConditionSelector, ConditionOperator};
 ///
 /// let mut matcher: Matcher<&str> = Matcher::new(MatcherMode::AND);
@@ -666,7 +668,7 @@ use crate::result::{JsonConditionResult, JsonEvalResult};
 #[cfg(feature = "json_condition")]
 pub fn evaluate_json_condition<M: Matchable>(
     context: &M,
-    group: &JsonNestedCondition<'_>,
+    group: &JsonNestedCondition,
 ) -> JsonEvalResult {
     let mut details = Vec::new();
     eval_json_nested_recursive(context, group, &mut details)
@@ -675,7 +677,7 @@ pub fn evaluate_json_condition<M: Matchable>(
 #[cfg(feature = "json_condition")]
 fn eval_json_nested_recursive<M: Matchable>(
     context: &M,
-    group: &JsonNestedCondition<'_>,
+    group: &JsonNestedCondition,
     details: &mut Vec<JsonConditionResult>,
 ) -> JsonEvalResult {
     let mut flags = Vec::new();
@@ -706,8 +708,8 @@ fn eval_json_nested_recursive<M: Matchable>(
 }
 
 #[cfg(feature = "json_condition")]
-fn eval_json_rule<M: Matchable>(context: &M, rule: &JsonCondition<'_>) -> JsonConditionResult {
-    let field = rule.field.as_ref();
+fn eval_json_rule<M: Matchable>(context: &M, rule: &JsonCondition) -> JsonConditionResult {
+    let field = &rule.field;
 
     // Support dotted paths like "user.age" by splitting on '.'
     let path_segments: Vec<&str> = field.split('.').collect();
@@ -725,7 +727,7 @@ fn eval_json_rule<M: Matchable>(context: &M, rule: &JsonCondition<'_>) -> JsonCo
                 compare_json_to_any(actual, &rule.value, &rule.operator);
             JsonConditionResult {
                 passed,
-                field: field.to_string(),
+                field: field.clone(),
                 operator: rule.operator,
                 expected: rule.value.clone(),
                 actual: actual_str
@@ -739,7 +741,7 @@ fn eval_json_rule<M: Matchable>(context: &M, rule: &JsonCondition<'_>) -> JsonCo
         }
         None => JsonConditionResult {
             passed: false,
-            field: field.to_string(),
+            field: field.clone(),
             operator: rule.operator,
             expected: rule.value.clone(),
             actual: None,

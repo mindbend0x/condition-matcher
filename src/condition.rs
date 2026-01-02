@@ -1,7 +1,11 @@
 use std::any::Any;
 
-#[cfg(feature = "json_condition")]
-use std::borrow::Cow;
+use crate::{
+    evaluators::{FieldEvaluator, LengthEvaluator, PathEvaluator, TypeEvaluator, ValueEvaluator},
+    matchable::Matchable,
+    result::ConditionResult,
+    traits::Predicate,
+};
 
 /// Mode for combining multiple conditions
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -104,14 +108,13 @@ pub struct NestedCondition<'a, T> {
 /// 
 /// Deserializes from JSON like:
 /// ```json
-/// { "field": "price", "operator": "gte", "value": 100.0 }
+/// { "field": "price", "operator": "greater_than_or_equal", "value": 100.0 }
 /// ```
 #[cfg(feature = "json_condition")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct JsonCondition<'a> {
+pub struct JsonCondition {
     /// The field to check (supports dotted paths like "user.age")
-    #[serde(borrow)]
-    pub field: Cow<'a, str>,
+    pub field: String,
     /// The comparison operator
     pub operator: ConditionOperator,
     /// The value to compare against
@@ -125,7 +128,7 @@ pub struct JsonCondition<'a> {
 /// {
 ///     "logic": "AND",
 ///     "rules": [
-///         { "field": "price", "operator": "gte", "value": 100.0 }
+///         { "field": "price", "operator": "greater_than_or_equal", "value": 100.0 }
 ///     ],
 ///     "nested": [
 ///         { "logic": "OR", "rules": [...] }
@@ -134,14 +137,88 @@ pub struct JsonCondition<'a> {
 /// ```
 #[cfg(feature = "json_condition")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct JsonNestedCondition<'a> {
+pub struct JsonNestedCondition {
     /// How to combine conditions: AND, OR, XOR
-    #[serde(alias = "logic", alias = "comparator")]
+    #[serde(alias = "logic", alias = "comparator", default)]
     pub mode: ConditionMode,
     /// Simple conditions at this level
-    #[serde(default, borrow, alias = "conditions")]
-    pub rules: Vec<JsonCondition<'a>>,
+    #[serde(default, alias = "conditions")]
+    pub rules: Vec<JsonCondition>,
     /// Child groups (recursive)
     #[serde(default, alias = "nested_rules", alias = "nested_conditions")]
-    pub nested: Vec<Box<JsonNestedCondition<'a>>>,
+    pub nested: Vec<Box<JsonNestedCondition>>,
+}
+
+// ============================================================================
+// Predicate Implementation for Condition
+// ============================================================================
+
+impl<'a, T: Matchable + 'static> Predicate<T> for Condition<'a, T> {
+    fn test(&self, value: &T) -> bool {
+        self.test_detailed(value).passed
+    }
+
+    fn test_detailed(&self, value: &T) -> ConditionResult {
+        match &self.selector {
+            ConditionSelector::Length(expected) => {
+                LengthEvaluator::evaluate(value, *expected, &self.operator)
+            }
+            ConditionSelector::Type(type_name) => {
+                TypeEvaluator::evaluate(value, type_name, &self.operator)
+            }
+            ConditionSelector::Value(expected) => {
+                ValueEvaluator::evaluate(value, expected, &self.operator)
+            }
+            ConditionSelector::FieldValue(field, expected) => {
+                FieldEvaluator::evaluate(value, field, *expected, &self.operator)
+            }
+            ConditionSelector::FieldPath(path, expected) => {
+                PathEvaluator::evaluate(value, path, *expected, &self.operator)
+            }
+            ConditionSelector::Not(inner) => {
+                let mut result = inner.test_detailed(value);
+                result.passed = !result.passed;
+                result.description = format!("NOT({})", result.description);
+                result
+            }
+            ConditionSelector::Nested(group) => evaluate_nested(value, group),
+        }
+    }
+}
+
+/// Evaluate a nested condition group.
+fn evaluate_nested<'a, T: Matchable + 'static>(
+    value: &T,
+    group: &NestedCondition<'a, T>,
+) -> ConditionResult {
+    let mut results = Vec::new();
+
+    // Evaluate all rules at this level
+    for condition in &group.rules {
+        results.push(condition.test_detailed(value));
+    }
+
+    // Evaluate nested groups recursively
+    for nested_group in &group.nested {
+        results.push(evaluate_nested(value, nested_group));
+    }
+
+    let passed = match group.mode {
+        ConditionMode::AND => results.iter().all(|r| r.passed),
+        ConditionMode::OR => results.iter().any(|r| r.passed),
+        ConditionMode::XOR => results.iter().filter(|r| r.passed).count() == 1,
+    };
+
+    ConditionResult {
+        passed,
+        description: format!(
+            "{:?} group ({} rules, {} nested)",
+            group.mode,
+            group.rules.len(),
+            group.nested.len()
+        ),
+        actual_value: None,
+        expected_value: None,
+        error: None,
+    }
 }
