@@ -1,8 +1,7 @@
 //! Advanced filtering example demonstrating real-world use cases
 
 use condition_matcher::{
-    field, Condition, ConditionOperator, ConditionSelector, Matchable, MatchableDerive, Matcher,
-    MatcherMode,
+    Condition, ConditionMode, ConditionOperator, ConditionSelector, Evaluate, JsonCondition, JsonMatcher, JsonNestedCondition, Matchable, MatchableDerive, Matcher, MatcherExt, RuleMatcher, builder::field
 };
 
 // Complex example with multiple struct types
@@ -52,14 +51,14 @@ fn main() {
 
     // Example 1: Find products that are in stock
     println!("1. Finding products in stock:");
-    let mut in_stock_matcher = Matcher::new(MatcherMode::AND);
+    let mut in_stock_matcher = RuleMatcher::new(ConditionMode::AND);
     in_stock_matcher.add_condition(Condition {
         selector: ConditionSelector::FieldValue("in_stock", &true),
         operator: ConditionOperator::Equals,
     });
 
     for product in &products {
-        if in_stock_matcher.run(product).unwrap_or(false) {
+        if in_stock_matcher.matches(product) {
             println!(
                 "   ✓ {} (${}) - Qty: {}",
                 product.name, product.price, product.quantity
@@ -69,21 +68,21 @@ fn main() {
 
     // Example 2: Find expensive products (price > $50) that are in stock using numeric comparison
     println!("\n2. Finding products with price > $50:");
-    let mut expensive_matcher = Matcher::new(MatcherMode::AND);
+    let mut expensive_matcher = RuleMatcher::new(ConditionMode::AND);
     expensive_matcher.add_condition(Condition {
         selector: ConditionSelector::FieldValue("price", &50.0f64),
         operator: ConditionOperator::GreaterThan,
     });
 
     for product in &products {
-        if expensive_matcher.run(product).unwrap_or(false) {
+        if expensive_matcher.matches(product) {
             println!("   ✓ {} - ${}", product.name, product.price);
         }
     }
 
     // Example 3: Using OR mode - products that are either out of stock OR have quantity < 10
     println!("\n3. Products out of stock OR low quantity (<10):");
-    let mut or_matcher = Matcher::new(MatcherMode::OR);
+    let mut or_matcher = RuleMatcher::new(ConditionMode::OR);
     or_matcher
         .add_condition(Condition {
             selector: ConditionSelector::FieldValue("in_stock", &false),
@@ -95,7 +94,7 @@ fn main() {
         });
 
     for product in &products {
-        if or_matcher.run(product).unwrap_or(false) {
+        if or_matcher.matches(product) {
             println!(
                 "   ⚠ {} - Stock: {}, Qty: {}",
                 product.name, product.in_stock, product.quantity
@@ -105,14 +104,14 @@ fn main() {
 
     // Example 4: String operations - find products with names containing certain text
     println!("\n4. Products with 'boa' in name:");
-    let mut name_matcher = Matcher::new(MatcherMode::AND);
+    let mut name_matcher = RuleMatcher::new(ConditionMode::AND);
     name_matcher.add_condition(Condition {
         selector: ConditionSelector::FieldValue("name", &"boa"),
         operator: ConditionOperator::Contains,
     });
 
     for product in &products {
-        if name_matcher.run(product).unwrap_or(false) {
+        if name_matcher.matches(product) {
             println!("   ✓ {}", product.name);
         } else {
             println!("   ✗ {} (no match)", product.name);
@@ -145,14 +144,14 @@ fn main() {
 
     // Find paid orders
     println!("5. Finding paid orders:");
-    let mut paid_matcher = Matcher::new(MatcherMode::AND);
+    let mut paid_matcher = RuleMatcher::new(ConditionMode::AND);
     paid_matcher.add_condition(Condition {
         selector: ConditionSelector::FieldValue("is_paid", &true),
         operator: ConditionOperator::Equals,
     });
 
     for order in &orders {
-        if paid_matcher.run(order).unwrap_or(false) {
+        if paid_matcher.matches(order) {
             println!(
                 "   ✓ Order #{} - {} - ${}",
                 order.order_id, order.customer_name, order.total_amount
@@ -162,7 +161,7 @@ fn main() {
 
     // Find unpaid orders with high amounts
     println!("\n6. Finding unpaid orders over $50:");
-    let mut high_unpaid_matcher = Matcher::new(MatcherMode::AND);
+    let mut high_unpaid_matcher = RuleMatcher::new(ConditionMode::AND);
     high_unpaid_matcher
         .add_condition(Condition {
             selector: ConditionSelector::FieldValue("is_paid", &false),
@@ -174,7 +173,7 @@ fn main() {
         });
 
     for order in &orders {
-        if high_unpaid_matcher.run(order).unwrap_or(false) {
+        if high_unpaid_matcher.matches(order) {
             println!(
                 "   ⚠ Order #{} - {} - ${} - NEEDS FOLLOW-UP",
                 order.order_id, order.customer_name, order.total_amount
@@ -186,7 +185,7 @@ fn main() {
     println!("\n7. Demonstrating XOR mode:");
     let test_product = &products[0];
 
-    let mut xor_matcher = Matcher::new(MatcherMode::XOR);
+    let mut xor_matcher = RuleMatcher::new(ConditionMode::XOR);
     xor_matcher
         .add_condition(Condition {
             selector: ConditionSelector::FieldValue("in_stock", &true),
@@ -200,17 +199,17 @@ fn main() {
     println!(
         "   Product '{}' matches XOR (exactly one condition): {}",
         test_product.name,
-        xor_matcher.run(test_product).unwrap_or(false)
+        xor_matcher.matches(test_product)
     );
 
     // Example 8: Using the field builder API
     println!("\n8. Using field builder API:");
     let condition = field::<Product>("price").gte(&100.0f64);
-    let mut field_matcher = Matcher::new(MatcherMode::AND);
+    let mut field_matcher = RuleMatcher::new(ConditionMode::AND);
     field_matcher.add_condition(condition);
 
     for product in &products {
-        if field_matcher.run(product).unwrap_or(false) {
+        if field_matcher.matches(product) {
             println!("   ✓ {} costs $100 or more", product.name);
         }
     }
@@ -218,7 +217,7 @@ fn main() {
     // Example 9: Getting detailed match results
     println!("\n9. Detailed match results for Laptop:");
     let laptop = &products[0];
-    let detailed = expensive_matcher.run_detailed(laptop).unwrap();
+    let detailed = expensive_matcher.evaluate(laptop);
 
     println!("   Overall match: {}", detailed.is_match());
     for (i, result) in detailed.condition_results.iter().enumerate() {
@@ -242,5 +241,8 @@ fn main() {
         "In stock: {}",
         products.iter().filter(|p| p.in_stock).count()
     );
-    println!("Paid orders: {}", orders.iter().filter(|o| o.is_paid).count());
+    println!(
+        "Paid orders: {}",
+        orders.iter().filter(|o| o.is_paid).count()
+    );
 }

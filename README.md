@@ -1,21 +1,24 @@
 # Condition Matcher
 
-A flexible and type-safe condition matching library for Rust with automatic struct field access.
+**Why?** Rust's `match` statement is arguably one of the most powerful and flexible features of the language. It allows you to match against a value and execute different code blocks based on the value. However, if you want to match against user-defined rules, you'd need to write a lot of boilerplate code.
+
+**What?** This library provides a flexible and type-safe condition matching library for Rust with automatic struct field access. It allows you to create matchers that can be used to match against values and execute different code blocks based on the value.
 
 ## Features
 
 - **Automatic struct matching** with derive macro
-- Multiple matching modes (AND, OR, XOR)
+- Multiple matching modes with support for nested conditions
 - Support for various condition types (value, length, type, field)
 - **Numeric comparisons** on fields (>, <, >=, <=)
 - **String operations** (contains, starts_with, ends_with)
 - **Regex matching** (optional feature)
-- **NOT operator** for negating conditions
 - **Optional field handling** (Option<T> support)
 - **Detailed match results** with error information
 - **Builder pattern** for ergonomic API
 - **Serde support** (optional feature)
+- **Parallel processing** (optional feature)
 - Zero-cost abstractions with compile-time type safety
+
 
 ## Installation
 
@@ -23,15 +26,44 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-condition-matcher = "0.1.0"
+condition-matcher = "0.2.0"
 
 # Optional features
-condition-matcher = { version = "0.1.0", features = ["serde", "regex"] }
+condition-matcher = { version = "0.2.0", features = ["serde", "regex", "json_condition", "parallel"] }
 # Or all features
-condition-matcher = { version = "0.1.0", features = ["full"] }
+condition-matcher = { version = "0.2.0", features = ["full"] }
 ```
 
 ## Quick Start
+
+There are two main concepts in this library:
+- `Matcher`: A matcher is a collection of conditions that are evaluated against some data.
+- `Matchable`: A matchable is a type (data) that conditions can be evaluated against.
+
+The `Matcher` trait is implemented by `RuleMatcher` and `JsonMatcher`. The primary difference is that a `JsonMatcher` is constructed from a JSON input value.
+
+A `Matcher` can be created in a few different ways:
+
+- By using the `MatcherBuilder` to construct the ruleset in Rust code. This creates a `RuleMatcher`.
+- By using a JSON string or `serde_json::Value` to construct a `JsonMatcher`.
+
+A `Matchable` can be a basic type, like a string or number, or a complex type, like a struct. To make a complex type matchable, you can derive the `Matchable` trait.
+
+```rust
+#[derive(MatchableDerive, PartialEq, Debug)]
+struct Product {
+    id: i32,
+    name: String,
+    price: f64,
+    in_stock: bool,
+    quantity: u32,
+}
+```
+
+It is also possible to implement the `Matchable` trait for your own types and more complex use-cases, like a database cache layer. More details can be found in the examples.
+
+
+### Basic Usage
 
 ```rust
 use condition_matcher::{
@@ -65,10 +97,11 @@ matcher
         operator: ConditionOperator::Contains,
     });
 
-assert!(matcher.run(&user).unwrap());
+assert!(matcher.matches(&user));
 ```
 
-## Builder API
+
+### Builder API
 
 For a more ergonomic experience, use the builder pattern:
 
@@ -81,7 +114,7 @@ let matcher = MatcherBuilder::<&str>::new()
     .value_not_equals("bad")
     .build();
 
-assert!(matcher.run(&"good").unwrap());
+assert!(matcher.matches(&"good"));
 ```
 
 Or use the field condition builder:
@@ -97,6 +130,34 @@ struct Product {
 let condition = field::<Product>("price").gte(&50.0f64);
 let mut matcher = Matcher::new(MatcherMode::AND);
 matcher.add_condition(condition);
+```
+
+### JSON Condition Usage
+
+Your rules can be stored in a database or a config file. To enable using stored rules, you can create a `JsonMatcher` from a JSON string or `serde_json::Value`.
+
+Here's a quick example of how a JSON value can be used to create a `JsonMatcher`:
+
+```rust
+let conditions = r#"{
+    "mode": "OR",
+    "nested": [
+        {
+            "mode": "AND",
+            "rules": [
+                {"field": "price", "operator": "greater_than", "value": 500}
+            ]
+        },
+        {
+            "mode": "AND",
+            "rules": [
+                {"field": "price", "operator": "less_than", "value": 100},
+                {"field": "in_stock", "operator": "equals", "value": false}
+            ]
+        }
+    ]
+}"#;
+let matcher = JsonMatcher::from_json(conditions).unwrap();
 ```
 
 ## Matching Modes
@@ -115,12 +176,7 @@ At least one condition must match:
 let mut matcher = Matcher::new(MatcherMode::OR);
 ```
 
-### XOR Mode
-Exactly one condition must match:
-
-```rust
-let mut matcher = Matcher::new(MatcherMode::XOR);
-```
+> Note: More matching modes will be included in future versions. For example `XOR` to match exactly one condition.
 
 ## Condition Types
 
@@ -141,6 +197,10 @@ Condition {
 ```
 
 ### Field Value Matching
+
+> Field value matching has a built-in implementation for all basic types within a struct. Complex types need to implement the `get_field` and `get_field_path` methods
+from the `Matchable` trait to handle arbitrary field access.
+
 ```rust
 Condition {
     selector: ConditionSelector::FieldValue("age", &18u32),
@@ -159,6 +219,38 @@ Condition {
     selector: ConditionSelector::Not(Box::new(inner)),
     operator: ConditionOperator::Equals,
 }
+```
+
+### Nested Conditions
+
+Nested conditions are supported by the `NestedCondition` struct.
+
+```rust
+let nested = NestedCondition {
+    mode: ConditionMode::AND,
+    rules: vec![
+        Condition {
+            selector: ConditionSelector::FieldValue("price", &100.0f64),
+            operator: ConditionOperator::GreaterThanOrEqual,
+        },
+    ],
+    nested: vec![
+        NestedCondition {
+            mode: ConditionMode::OR,
+            rules: vec![
+                Condition {
+                    selector: ConditionSelector::FieldValue("quantity", &10u32),
+                    operator: ConditionOperator::LessThanOrEqual,
+                },
+                Condition {
+                    selector: ConditionSelector::FieldValue("is_new", &true),
+                    operator: ConditionOperator::GreaterThanOrEqual,
+                },
+            ],
+            nested: vec![],
+        },
+    ],
+};
 ```
 
 ## Supported Operators
@@ -285,12 +377,15 @@ Run the examples to see the library in action:
 ```bash
 cargo run --example basic_usage
 cargo run --example advanced_filtering
+cargo run --example json_condition
+cargo run --example parallel_processing
+cargo run --example parallel_cache_watchers
 ```
 
 ## License
 
-MIT OR Apache-2.0
+MIT
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please feel free to submit an issue for a feature request or bug report, or a Pull Request if you'd like to add something.
