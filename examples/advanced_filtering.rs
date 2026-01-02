@@ -1,8 +1,8 @@
 //! Advanced filtering example demonstrating real-world use cases
 
 use condition_matcher::{
-    field, Condition, ConditionOperator, ConditionSelector, Matchable, MatchableDerive, Matcher,
-    MatcherMode,
+    builder::field, Condition, ConditionOperator, ConditionSelector, Matchable, MatchableDerive,
+    Matcher, ConditionMode,
 };
 
 // Complex example with multiple struct types
@@ -52,7 +52,7 @@ fn main() {
 
     // Example 1: Find products that are in stock
     println!("1. Finding products in stock:");
-    let mut in_stock_matcher = Matcher::new(MatcherMode::AND);
+    let mut in_stock_matcher = Matcher::new(ConditionMode::AND);
     in_stock_matcher.add_condition(Condition {
         selector: ConditionSelector::FieldValue("in_stock", &true),
         operator: ConditionOperator::Equals,
@@ -69,7 +69,7 @@ fn main() {
 
     // Example 2: Find expensive products (price > $50) that are in stock using numeric comparison
     println!("\n2. Finding products with price > $50:");
-    let mut expensive_matcher = Matcher::new(MatcherMode::AND);
+    let mut expensive_matcher = Matcher::new(ConditionMode::AND);
     expensive_matcher.add_condition(Condition {
         selector: ConditionSelector::FieldValue("price", &50.0f64),
         operator: ConditionOperator::GreaterThan,
@@ -83,7 +83,7 @@ fn main() {
 
     // Example 3: Using OR mode - products that are either out of stock OR have quantity < 10
     println!("\n3. Products out of stock OR low quantity (<10):");
-    let mut or_matcher = Matcher::new(MatcherMode::OR);
+    let mut or_matcher = Matcher::new(ConditionMode::OR);
     or_matcher
         .add_condition(Condition {
             selector: ConditionSelector::FieldValue("in_stock", &false),
@@ -105,7 +105,7 @@ fn main() {
 
     // Example 4: String operations - find products with names containing certain text
     println!("\n4. Products with 'boa' in name:");
-    let mut name_matcher = Matcher::new(MatcherMode::AND);
+    let mut name_matcher = Matcher::new(ConditionMode::AND);
     name_matcher.add_condition(Condition {
         selector: ConditionSelector::FieldValue("name", &"boa"),
         operator: ConditionOperator::Contains,
@@ -145,7 +145,7 @@ fn main() {
 
     // Find paid orders
     println!("5. Finding paid orders:");
-    let mut paid_matcher = Matcher::new(MatcherMode::AND);
+    let mut paid_matcher = Matcher::new(ConditionMode::AND);
     paid_matcher.add_condition(Condition {
         selector: ConditionSelector::FieldValue("is_paid", &true),
         operator: ConditionOperator::Equals,
@@ -162,7 +162,7 @@ fn main() {
 
     // Find unpaid orders with high amounts
     println!("\n6. Finding unpaid orders over $50:");
-    let mut high_unpaid_matcher = Matcher::new(MatcherMode::AND);
+    let mut high_unpaid_matcher = Matcher::new(ConditionMode::AND);
     high_unpaid_matcher
         .add_condition(Condition {
             selector: ConditionSelector::FieldValue("is_paid", &false),
@@ -186,7 +186,7 @@ fn main() {
     println!("\n7. Demonstrating XOR mode:");
     let test_product = &products[0];
 
-    let mut xor_matcher = Matcher::new(MatcherMode::XOR);
+    let mut xor_matcher = Matcher::new(ConditionMode::XOR);
     xor_matcher
         .add_condition(Condition {
             selector: ConditionSelector::FieldValue("in_stock", &true),
@@ -206,7 +206,7 @@ fn main() {
     // Example 8: Using the field builder API
     println!("\n8. Using field builder API:");
     let condition = field::<Product>("price").gte(&100.0f64);
-    let mut field_matcher = Matcher::new(MatcherMode::AND);
+    let mut field_matcher = Matcher::new(ConditionMode::AND);
     field_matcher.add_condition(condition);
 
     for product in &products {

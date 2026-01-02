@@ -16,7 +16,7 @@
 //! ## Quick Start
 //!
 //! ```rust
-//! use condition_matcher::{Matcher, MatcherMode, Condition, ConditionSelector, ConditionOperator, Matchable, MatchableDerive};
+//! use condition_matcher::{Matcher, MatcherMode, Condition, ConditionSelector, ConditionOperator, MatchableDerive};
 //!
 //! #[derive(MatchableDerive, PartialEq, Debug)]
 //! struct User {
@@ -26,7 +26,10 @@
 //!
 //! let user = User { name: "Alice".to_string(), age: 30 };
 //!
-//! let mut matcher = Matcher::new(MatcherMode::AND);
+//! let mut matcher = MatcherBuilder::<User>::new()
+//!     .mode(MatcherMode::AND)
+//!     .value_equals(User { name: "Alice".to_string(), age: 30 })
+//!     .build();
 //! matcher.add_condition(Condition {
 //!     selector: ConditionSelector::FieldValue("age", &18u32),
 //!     operator: ConditionOperator::GreaterThanOrEqual,
@@ -49,12 +52,31 @@
 //! assert!(matcher.run(&"good").unwrap());
 //! ```
 
+pub mod builder;
 pub mod condition;
+pub mod error;
+pub mod matchable;
 pub mod matcher;
+pub mod result;
 
 // Re-export main types for convenience
-pub use condition::{Condition, ConditionOperator, ConditionSelector};
-pub use matcher::{
-    field, ConditionResult, FieldConditionBuilder, MatchError, MatchResult, Matchable,
-    MatchableDerive, Matcher, MatcherBuilder, MatcherMode,
+pub use builder::MatcherBuilder;
+pub use condition::{
+    Condition, ConditionMode, ConditionOperator, ConditionSelector, NestedCondition,
 };
+pub use error::MatchError;
+pub use matchable::Matchable;
+pub use matcher::Matcher;
+pub use result::{ConditionResult, MatchResult};
+
+// Re-export the derive macro
+pub use condition_matcher_derive::Matchable as MatchableDerive;
+
+// Re-export JSON condition types when json_condition feature is enabled
+#[cfg(feature = "json_condition")]
+pub use condition::{JsonCondition, JsonNestedCondition};
+#[cfg(feature = "json_condition")]
+pub use matcher::{JsonConditionResult, JsonEvalResult, evaluate_json_condition};
+
+#[cfg(test)]
+mod test;

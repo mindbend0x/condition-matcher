@@ -2,7 +2,7 @@
 
 use condition_matcher::{
     Condition, ConditionOperator, ConditionSelector, Matchable, MatchableDerive, Matcher,
-    MatcherMode,
+    ConditionMode,
 };
 
 // Define a struct and derive Matchable automatically!
@@ -23,7 +23,7 @@ fn main() {
     };
 
     // Example 1: Match by field value (automatic field access!)
-    let mut matcher = Matcher::new(MatcherMode::AND);
+    let mut matcher = Matcher::new(ConditionMode::AND);
     matcher
         .add_condition(Condition {
             selector: ConditionSelector::FieldValue("id", &42i32),
@@ -41,7 +41,7 @@ fn main() {
 
     // Example 2: Match by string field
     let expected_name = "Alice".to_string();
-    let mut name_matcher = Matcher::new(MatcherMode::AND);
+    let mut name_matcher = Matcher::new(ConditionMode::AND);
     name_matcher.add_condition(Condition {
         selector: ConditionSelector::FieldValue("name", &expected_name),
         operator: ConditionOperator::Equals,
@@ -53,7 +53,7 @@ fn main() {
     );
 
     // Example 3: OR mode - match either condition
-    let mut or_matcher = Matcher::new(MatcherMode::OR);
+    let mut or_matcher = Matcher::new(ConditionMode::OR);
     or_matcher
         .add_condition(Condition {
             selector: ConditionSelector::FieldValue("id", &100i32),
@@ -70,7 +70,7 @@ fn main() {
     );
 
     // Example 4: Numeric comparisons (NEW!)
-    let mut age_matcher = Matcher::new(MatcherMode::AND);
+    let mut age_matcher = Matcher::new(ConditionMode::AND);
     age_matcher.add_condition(Condition {
         selector: ConditionSelector::FieldValue("age", &18u32),
         operator: ConditionOperator::GreaterThanOrEqual,
@@ -82,7 +82,7 @@ fn main() {
     );
 
     // Example 5: String operations (NEW!)
-    let mut name_contains = Matcher::new(MatcherMode::AND);
+    let mut name_contains = Matcher::new(ConditionMode::AND);
     name_contains.add_condition(Condition {
         selector: ConditionSelector::FieldValue("name", &"lic"),
         operator: ConditionOperator::Contains,
@@ -105,7 +105,7 @@ fn main() {
         zip: 10001,
     };
 
-    let mut address_matcher = Matcher::new(MatcherMode::AND);
+    let mut address_matcher = Matcher::new(ConditionMode::AND);
     address_matcher.add_condition(Condition {
         selector: ConditionSelector::FieldValue("zip", &10001i32),
         operator: ConditionOperator::Equals,
@@ -127,7 +127,7 @@ fn main() {
     use condition_matcher::MatcherBuilder;
 
     let builder_matcher = MatcherBuilder::<&str>::new()
-        .mode(MatcherMode::AND)
+        .mode(ConditionMode::AND)
         .length_gte(4)
         .value_not_equals("bad")
         .build();

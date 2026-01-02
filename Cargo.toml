@@ -11,13 +11,15 @@ categories = ["data-structures", "rust-patterns"]
 [dependencies]
 condition-matcher-derive = { path = "condition-matcher-derive", version = "0.1.0"}
 serde = { version = "1.0", features = ["derive"], optional = true }
+serde_json = { version = "1.0", optional = true }
 regex = { version = "1.10", optional = true }
 
 [features]
 default = []
 serde = ["dep:serde", "condition-matcher-derive/serde"]
+json_condition = ["serde", "dep:serde_json"]
 regex = ["dep:regex"]
-full = ["serde", "regex"]
+full = ["serde", "regex", "json_condition"]
 
 [workspace]
 members = [".", "condition-matcher-derive"]
